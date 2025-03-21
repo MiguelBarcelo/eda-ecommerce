@@ -3,27 +3,16 @@ const mongoose = require("mongoose");
 const { Kafka } = require("kafkajs");
 require("dotenv").config();
 
-const {
-  PORT,
-  TOPIC,
-  KAFKA_BROKER,
-  CLIENT_ID,
-  MONGO_URI,
-} = require("./constants");
-
 const app = express();
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || MONGO_URI, {
-  useNewUrlParser: true, // Warning: useNewUrlParser is a deprecated option: useNewUrlParser has no effect since Node.js Driver version 4.0.0 and will be removed in the next major version
-  useUnifiedTopology: true, // Warning: useUnifiedTopology is a deprecated option: useUnifiedTopology has no effect since Node.js Driver version 4.0.0 and will be removed in the next major version
-});
+mongoose.connect(process.env.MONGO_URI);
 
 // Kafka Producer Setup
 const kafka = new Kafka({
-  clientId: CLIENT_ID,
-  brokers: [process.env.KAFKA_BROKER || KAFKA_BROKER],
+  clientId: process.env.ORDSRV_CLIENT_ID,
+  brokers: [process.env.KAFKA_BROKER],
 });
 const producer = kafka.producer();
 producer.connect();
@@ -48,11 +37,13 @@ app.post("/order", async (req, res) => {
 
   // Publish Event
   await producer.send({
-    topic: TOPIC,
+    topic: process.env.TOPIC_ORDER_PLACED,
     messages: [{ value: JSON.stringify(order) }],
   });
 
   res.status(201).json({ message: "Order placed", order });
 });
 
-app.listen(PORT, () => console.log(`Order Service running on port ${PORT}`));
+app.listen(process.env.ORDSRV_PORT, () =>
+  console.log(`Order Service running on port ${process.env.ORDSRV_PORT}`)
+);

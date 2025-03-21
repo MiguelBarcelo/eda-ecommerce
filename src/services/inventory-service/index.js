@@ -3,28 +3,18 @@ const mongoose = require("mongoose");
 const { Kafka } = require("kafkajs");
 require("dotenv").config();
 
-const {
-  PORT,
-  GROUP_ID,
-  CLIENT_ID,
-  TOPIC_PUB,
-  TOPIC_SUB,
-  KAFKA_BROKER,
-  MONGO_URI,
-} = require("./constants");
-
 const app = express();
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || MONGO_URI);
+mongoose.connect(process.env.MONGO_URI);
 
 // Kafka Consumer & Producer Setup
 const kafka = new Kafka({
-  clientId: CLIENT_ID,
-  brokers: [process.env.KAFKA_BROKER || KAFKA_BROKER],
+  clientId: process.env.INVSRV_CLIENT_ID,
+  brokers: [process.env.KAFKA_BROKER],
 });
-const consumer = kafka.consumer({ groupId: GROUP_ID });
+const consumer = kafka.consumer({ groupId: process.env.INVSRV_GROUP_ID });
 const producer = kafka.producer();
 producer.connect();
 
@@ -61,7 +51,7 @@ async function processOrder(order) {
 
   // Publish inventory update event
   await producer.send({
-    topic: TOPIC_PUB,
+    topic: process.env.TOPIC_INVENTORY_UPDATED,
     messages: [
       {
         value: JSON.stringify({ orderId: order._id, success: itemsAvailable }),
@@ -80,7 +70,7 @@ async function processOrder(order) {
 async function startConsumer() {
   await consumer.connect();
   await consumer.subscribe({
-    topic: TOPIC_SUB,
+    topic: process.env.TOPIC_ORDER_PLACED,
     fromBeginning: true,
   });
 
@@ -95,6 +85,6 @@ async function startConsumer() {
 
 startConsumer();
 
-app.listen(PORT, () =>
-  console.log(`Inventory Service running on port ${PORT}`)
+app.listen(process.env.INVSRV_PORT, () =>
+  console.log(`Inventory Service running on port ${process.env.INVSRV_PORT}`)
 );
