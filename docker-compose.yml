@@ -23,6 +23,17 @@ services:
     env_file:
       - .env
 
+  payment-service:
+    build: ./src/services/payment-service
+    container_name: payment-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      - kafka
+      - mongodb
+    env_file:
+      - .env
+
   mongodb:
     image: mongo
     container_name: mongodb
