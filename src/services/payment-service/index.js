@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 const { Kafka } = require("kafkajs");
 require("dotenv").config();
 // Models
-const Order = require("../../shared/models/Order");
-const Status = require("../../shared/constants/status");
+const Order = require("/app/shared/models/Order");
+const Status = require("/app/shared/constants/status");
 
 const app = express();
 app.use(express.json());
