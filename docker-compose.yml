@@ -40,6 +40,18 @@ services:
     env_file:
       - .env
 
+  notification-service:
+    build: ./src/services/notification-service
+    container_name: notification-service
+    ports:
+      - "5004:5004"
+    volumes:
+      - ./src/shared:/app/shared # Mount shared folder
+    depends_on:
+      - kafka
+    env_file:
+      - .env
+
   mongodb:
     image: mongo
     container_name: mongodb
