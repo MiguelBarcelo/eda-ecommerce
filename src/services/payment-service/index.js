@@ -21,7 +21,6 @@ const consumer = kafka.consumer({
   groupId: process.env.PYMNTSRV_GROUP_ID,
 });
 const producer = kafka.producer();
-producer.connect();
 
 // Payment Schema
 const Payment = mongoose.model(
@@ -50,10 +49,12 @@ async function processPayment(order) {
   // Update Order Status
   await Order.findByIdAndUpdate(order.orderId, { status });
 
+  // Ensure producer is ready before sending
+  await producer.connect();
   // Publish event to Kafka
   await producer.send({
     topic: process.env.TOPIC_ORDER_UPDATES,
-    messages: [{ value: JSON.stringify({ orderId, status }) }],
+    messages: [{ value: JSON.stringify({ ...order, status }) }],
   });
 
   console.log(`💰 Order ${order.orderId} status updated to: ${status}`);

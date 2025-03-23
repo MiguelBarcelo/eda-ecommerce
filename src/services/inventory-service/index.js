@@ -20,7 +20,6 @@ const kafka = new Kafka({
 });
 const consumer = kafka.consumer({ groupId: process.env.INVSRV_GROUP_ID });
 const producer = kafka.producer();
-producer.connect();
 
 // Function to process orders
 async function processOrder(order) {
@@ -50,6 +49,8 @@ async function processOrder(order) {
 
   await Order.findByIdAndUpdate(order._id, { status });
 
+  // Ensure producer is ready before sending
+  await producer.connect();
   // Publish inventory update event
   await producer.send({
     topic: process.env.TOPIC_ORDER_UPDATES,
