@@ -2,6 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { Kafka } = require("kafkajs");
 require("dotenv").config();
+// Models
+const Order = require("../../shared/models/Order");
 
 const app = express();
 app.use(express.json());
@@ -16,20 +18,6 @@ const kafka = new Kafka({
 });
 const producer = kafka.producer();
 producer.connect();
-
-// Order Schema
-const Order = mongoose.model(
-  "Order",
-  new mongoose.Schema({
-    userId: String,
-    items: Array,
-    total: Number,
-    status: {
-      type: String,
-      default: "pending",
-    },
-  })
-);
 
 // Place Order API
 app.post("/order", async (req, res) => {

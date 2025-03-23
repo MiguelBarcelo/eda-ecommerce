@@ -2,6 +2,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { Kafka } = require("kafkajs");
 require("dotenv").config();
+// Models
+const Order = require("../../shared/models/Order");
+const Status = require("../../shared/constants/status");
 
 const app = express();
 app.use(express.json());
@@ -35,54 +38,47 @@ const Payment = mongoose.model(
 );
 
 // Simulated payment processing function
-async function processPayment({ orderId, userId, amount, success }) {
-  if (!success) {
-    console.log(`Payment failed for order ${orderId} (Out of stock)`);
-    return;
-  }
+async function processPayment(order) {
+  console.log("💳 Processing payment for order:", order.orderId);
 
   // Simulate payment success
-  const payment = await Payment.create({
-    orderId,
-    userId,
-    amount,
-    status: "completed",
-  });
+  const isPaid = Math.random() > 0.1; // 90% success rate
+  const status = isPaid
+    ? Status.Order.paymentConfirmed
+    : Status.Order.paymentFailed;
 
-  // Publish payment event
+  // Update Order Status
+  await Order.findByIdAndUpdate(order.orderId, { status });
+
+  // Publish event to Kafka
   await producer.send({
-    topic: process.env.TOPIC_PAYMENT_PROCESSED,
-    messages: [{ value: JSON.stringify({ orderId, success: true }) }],
+    topic: process.env.TOPIC_ORDER_UPDATES,
+    messages: [{ value: JSON.stringify({ orderId, status }) }],
   });
 
-  console.log(`Payment processed successfully for order ${orderId}`);
+  console.log(`💰 Order ${order.orderId} status updated to: ${status}`);
 }
 
-// Kafka Consumer: Listen for 'inventory_updated' events
 async function startConsumer() {
   await consumer.connect();
   await consumer.subscribe({
-    topic: process.env.TOPIC_INVENTORY_UPDATED,
+    topic: process.env.TOPIC_ORDER_UPDATES,
     fromBeginning: true,
   });
 
   await consumer.run({
     eachMessage: async ({ message }) => {
-      const event = JSON.parse(message.value.toString());
-      console.log(`Received inventory update for order ${event.orderId}`);
+      const orderUpdate = JSON.parse(message.value.toString());
 
       // Process payment only if inventory is available
-      await processPayment({
-        orderId: event.orderId,
-        userId: "user123",
-        amount: 99.99,
-        success: event.success,
-      });
+      if (orderUpdate.status === Status.Order.inventoryConfirmed) {
+        await processPayment(orderUpdate);
+      }
     },
   });
 }
 
-startConsumer();
+startConsumer().catch(console.error);
 
 app.listen(process.env.PYMNTSRV_PORT, () =>
   console.log(`Payment Service running on port ${process.env.PYMNTSRV_PORT}`)

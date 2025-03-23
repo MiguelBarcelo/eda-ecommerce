@@ -2,6 +2,10 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { Kafka } = require("kafkajs");
 require("dotenv").config();
+// Models
+const Order = require("../../shared/models/Order");
+const Inventory = require("../../shared/models/Inventory");
+const Status = require("../../shared/constants/status");
 
 const app = express();
 app.use(express.json());
@@ -18,24 +22,19 @@ const consumer = kafka.consumer({ groupId: process.env.INVSRV_GROUP_ID });
 const producer = kafka.producer();
 producer.connect();
 
-// Inventory Schema
-const Inventory = mongoose.model(
-  "Inventory",
-  new mongoose.Schema({
-    productId: String,
-    quantity: Number,
-  })
-);
-
 // Function to process orders
 async function processOrder(order) {
+  console.log(`🔄 Checking inventory for order: ${order._id}`);
+
   let itemsAvailable = true;
+  let status = Status.Order.inventoryConfirmed;
 
   for (let item of order.items) {
     const product = await Inventory.findOne({ productId: item.productId });
 
     if (!product || product.quantity < item.quantity) {
       itemsAvailable = false;
+      status = Status.Order.outOfStock;
       break;
     }
   }
@@ -49,21 +48,19 @@ async function processOrder(order) {
     }
   }
 
+  await Order.findByIdAndUpdate(order._id, { status });
+
   // Publish inventory update event
   await producer.send({
-    topic: process.env.TOPIC_INVENTORY_UPDATED,
+    topic: process.env.TOPIC_ORDER_UPDATES,
     messages: [
       {
-        value: JSON.stringify({ orderId: order._id, success: itemsAvailable }),
+        value: JSON.stringify({ orderId: order._id, status }),
       },
     ],
   });
 
-  console.log(
-    `Inventory processed for order ${order._id}: ${
-      itemsAvailable ? "Success" : "Failed"
-    }`
-  );
+  console.log(`📦 Order ${order._id} status updated to: ${status}`);
 }
 
 // Kafka Consumer: Listen for 'order_placed' events
@@ -83,8 +80,8 @@ async function startConsumer() {
   });
 }
 
-startConsumer();
+startConsumer().catch(console.error);
 
 app.listen(process.env.INVSRV_PORT, () =>
-  console.log(`Inventory Service running on port ${process.env.INVSRV_PORT}`)
+  console.log(`📦 Inventory Service running on port ${process.env.INVSRV_PORT}`)
 );
