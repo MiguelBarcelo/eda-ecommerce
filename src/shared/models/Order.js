@@ -1,9 +1,17 @@
 const mongoose = require("mongoose");
 const Status = require("../constants/status");
 
+const itemSchema = new mongoose.Schema(
+  {
+    productId: String,
+    quantity: Number,
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema({
   userId: String,
-  items: [{ productId: String, quantity: Number }],
+  items: [itemSchema],
   totalPrice: Number,
   status: {
     type: String,
