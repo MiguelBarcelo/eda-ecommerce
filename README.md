@@ -1,6 +1,6 @@
 # Real-Time Order Processing System (E-commerce)
 
-**Event-Driven Architecture (EDA)**
+This system follows an **Event-Driven Architecture (EDA)** where different microservices communicate **asynchronously** via events.
 
 **Key Features:**
 
@@ -21,3 +21,25 @@
                                                          |--> [Payment Service]
                                                          |--> [Notification Service]
 ```
+
+### Order Service (API-based)
+
+- Receives and creates order from customers `POST /order`
+- Publishes `order_placed` event to Kafka
+
+### Inventory Service (Event-driven)
+
+- Consumes `order_placed` events
+- Checks stock & updates Inventory and Order status
+- Emits `order_updates` event
+
+## Payment Service (Event-driven)
+
+- Listens for `order_updates` events
+- Processes payments & updates Order status
+- Emits `order_updates` event
+
+## Notification Service (Event-driven)
+
+- Listens to `order_updates` events
+- Emits WebSocket events to the FE
