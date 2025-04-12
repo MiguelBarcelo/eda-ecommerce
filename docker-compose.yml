@@ -8,6 +8,7 @@ services:
       - "5001:5001"
     volumes:
       - ./src/shared:/app/shared # Mount shared folder
+      - ./src/scripts/mongodb:/app/scripts/mongodb
     depends_on:
       - kafka
       - mongodb
